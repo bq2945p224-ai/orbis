@@ -57,6 +57,7 @@ export default function HomePage() {
           You control one person in a living world. One game day lasts four real hours — the
           simulation determines what happened; players determine what it means.
         </p>
+        <p className="text-sm text-ink/50">Public free preview on Vercel.</p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
