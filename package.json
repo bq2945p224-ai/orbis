@@ -12,6 +12,11 @@
     "db:seed": "node scripts/with-local-bin.mjs turbo run seed --filter=@orbis/db",
     "db:studio": "node scripts/with-local-bin.mjs pnpm --filter @orbis/db studio"
   },
+  "dependencies": {
+    "next": "^15.2.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "devDependencies": {
     "pnpm": "9.15.0",
     "turbo": "^2.5.4",
