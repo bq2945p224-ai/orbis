@@ -1,0 +1,32 @@
+# Free-tier public backend (Render). Web UI stays on Vercel (*.vercel.app).
+# Create Neon (PostGIS) + Upstash Redis first, then paste URLs into the dashboard.
+services:
+  - type: web
+    name: orbis-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: "false"
+      - key: SIM_TIME_RATIO
+        value: "6"
+      - key: WORLD_TICK_INTERVAL_MS
+        value: "60000"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: EMAIL_FROM
+        value: Orbis <noreply@orbis.game>

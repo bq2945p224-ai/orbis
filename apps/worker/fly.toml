@@ -1,0 +1,13 @@
+# Fly.io app: orbis-worker
+app = "orbis-worker"
+primary_region = "iad"
+
+[build]
+
+[processes]
+  worker = "node dist/main.js"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

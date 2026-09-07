@@ -1,0 +1,20 @@
+{
+  "name": "orbis",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "node scripts/with-local-bin.mjs turbo run build --filter=@orbis/config --filter=@orbis/contracts --filter=@orbis/db && node scripts/with-local-bin.mjs turbo run dev --parallel --filter=@orbis/web --filter=@orbis/api --filter=@orbis/worker",
+    "build": "node scripts/with-local-bin.mjs turbo run build",
+    "lint": "node scripts/with-local-bin.mjs turbo run lint",
+    "test": "node scripts/with-local-bin.mjs turbo run test",
+    "db:generate": "node scripts/with-local-bin.mjs turbo run generate --filter=@orbis/db",
+    "db:migrate": "node scripts/with-local-bin.mjs turbo run migrate --filter=@orbis/db",
+    "db:seed": "node scripts/with-local-bin.mjs turbo run seed --filter=@orbis/db",
+    "db:studio": "node scripts/with-local-bin.mjs pnpm --filter @orbis/db studio"
+  },
+  "devDependencies": {
+    "pnpm": "9.15.0",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  }
+}
