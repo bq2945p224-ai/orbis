@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { AppNav } from "@/components/AppNav";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Orbis",
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-paper text-ink font-sans antialiased">
         <AppNav />
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+        <SpeedInsights />
       </body>
     </html>
   );
