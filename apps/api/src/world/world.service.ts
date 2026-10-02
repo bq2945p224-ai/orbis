@@ -25,14 +25,23 @@ import {
 import { reportCrimeSchema, WorldEventType } from "@orbis/contracts";
 import { DbService } from "../core/db.service.js";
 import { EventsService } from "../core/events.service.js";
+import { EconomyService } from "../economy/economy.service.js";
 import type { AuthedAccount } from "../auth/auth.guard.js";
 import { requireLivingCharacter } from "../life/life.helpers.js";
+
+function fineForCrimeKind(kind: string) {
+  const key = kind.toLowerCase();
+  if (key.includes("theft") || key.includes("fraud")) return 15_000;
+  if (key.includes("assault") || key.includes("violence")) return 25_000;
+  return 8_000;
+}
 
 @Injectable()
 export class WorldService {
   constructor(
     @Inject(DbService) private readonly dbService: DbService,
     @Inject(EventsService) private readonly events: EventsService,
+    @Inject(EconomyService) private readonly economy: EconomyService,
   ) {}
 
   async listTreaties(_account: AuthedAccount) {
@@ -149,6 +158,8 @@ export class WorldService {
       throw new BadRequestException("Cannot report yourself");
     }
 
+    const fineCents = fineForCrimeKind(input.kind);
+
     const [crime] = await db
       .insert(crimes)
       .values({
@@ -174,11 +185,55 @@ export class WorldService {
       subjectId: crime.id,
     });
 
+    // Summary court: report opens a case and tries to collect a fine — reporting has teeth.
+    let verdict: "fined" | "judgment_unpaid" = "fined";
+    try {
+      await this.economy.debitCharacter(
+        input.accusedCharacterId,
+        fineCents,
+        "court_fine",
+        `court-fine:${crime.id}`,
+        { crimeId: crime.id, kind: input.kind },
+      );
+      await db.update(crimes).set({ status: "convicted" }).where(eq(crimes.id, crime.id));
+    } catch {
+      verdict = "judgment_unpaid";
+      await db.update(crimes).set({ status: "judgment_unpaid" }).where(eq(crimes.id, crime.id));
+    }
+
+    const [courtCase] = await db
+      .insert(courtCases)
+      .values({
+        crimeId: crime.id,
+        status: "resolved",
+        verdict,
+        fineCents,
+        resolvedAt: new Date(),
+      })
+      .returning();
+
+    await this.events.emit({
+      type: WorldEventType.CourtResolved,
+      payload: {
+        crimeId: crime.id,
+        courtCaseId: courtCase?.id,
+        verdict,
+        fineCents,
+        accusedCharacterId: input.accusedCharacterId,
+      },
+      actorCharacterId: reporter.id,
+      subjectType: "court_case",
+      subjectId: courtCase?.id ?? crime.id,
+    });
+
     return {
       crimeId: crime.id,
       accusedCharacterId: input.accusedCharacterId,
       kind: input.kind,
-      status: crime.status,
+      status: verdict === "fined" ? "convicted" : "judgment_unpaid",
+      courtCaseId: courtCase?.id ?? null,
+      verdict,
+      fineCents,
     };
   }
 

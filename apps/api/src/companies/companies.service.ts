@@ -13,14 +13,17 @@ import {
   companyEmployees,
   companyShares,
   districts,
+  inventories,
   productionOrders,
   and,
   desc,
   eq,
   inArray,
   isNull,
+  sql,
 } from "@orbis/db";
 import {
+  companyWithdrawSchema,
   createCompanySchema,
   effectiveProductionQuantity,
   hireCompanySchema,
@@ -316,12 +319,22 @@ export class CompaniesService {
       .innerJoin(characters, eq(companyShares.characterId, characters.id))
       .where(eq(companyShares.companyId, id));
 
+    const stock = await db
+      .select({
+        itemKey: inventories.itemKey,
+        quantity: inventories.quantity,
+      })
+      .from(inventories)
+      .where(and(eq(inventories.ownerType, "company"), eq(inventories.ownerId, id)));
+
     return {
       ...company,
       employees: employeesWithSkill,
       shareholders,
       workforce,
+      inventory: stock,
       yieldMultiplier: yieldPreview.multiplier,
+      note: "Employee salaries are paid from treasury on each world tick. Withdraw finished goods to your character to sell or use.",
     };
   }
 
@@ -574,6 +587,82 @@ export class CompaniesService {
       employmentId: updated!.id,
       companyId,
       endedAt: updated!.endedAt,
+    };
+  }
+
+  /** Move company stock into the founder's personal inventory so production can feed the market. */
+  async withdrawInventory(account: AuthedAccount, body: unknown) {
+    const input = companyWithdrawSchema.parse(body);
+    const db = this.dbService.db;
+    const character = await requireLivingCharacter(db, account);
+
+    const [company] = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.id, input.companyId))
+      .limit(1);
+    if (!company) throw new NotFoundException("Company not found");
+    if (company.founderCharacterId !== character.id) {
+      throw new ForbiddenException("Only the founder can withdraw company inventory");
+    }
+
+    await db.transaction(async (tx) => {
+      const [stock] = await tx
+        .select()
+        .from(inventories)
+        .where(
+          and(
+            eq(inventories.ownerType, "company"),
+            eq(inventories.ownerId, input.companyId),
+            eq(inventories.itemKey, input.itemKey),
+          ),
+        )
+        .limit(1);
+      if (!stock || stock.quantity < input.quantity) {
+        throw new BadRequestException("Insufficient company inventory");
+      }
+
+      const remaining = stock.quantity - input.quantity;
+      if (remaining <= 0) {
+        await tx.delete(inventories).where(eq(inventories.id, stock.id));
+      } else {
+        await tx
+          .update(inventories)
+          .set({ quantity: remaining })
+          .where(eq(inventories.id, stock.id));
+      }
+
+      await tx
+        .insert(inventories)
+        .values({
+          ownerType: "character",
+          ownerId: character.id,
+          itemKey: input.itemKey,
+          quantity: input.quantity,
+        })
+        .onConflictDoUpdate({
+          target: [inventories.ownerType, inventories.ownerId, inventories.itemKey],
+          set: { quantity: sql`${inventories.quantity} + ${input.quantity}` },
+        });
+    });
+
+    await this.events.emit({
+      type: WorldEventType.CompanyInventoryWithdrawn,
+      payload: {
+        companyId: input.companyId,
+        itemKey: input.itemKey,
+        quantity: input.quantity,
+      },
+      actorCharacterId: character.id,
+      subjectType: "company",
+      subjectId: input.companyId,
+    });
+
+    return {
+      companyId: input.companyId,
+      itemKey: input.itemKey,
+      quantity: input.quantity,
+      toCharacterId: character.id,
     };
   }
 }

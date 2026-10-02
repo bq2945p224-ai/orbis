@@ -5,7 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "Orbis",
-  description: "Persistent multiplayer society simulation",
+  description: "Persistent multiplayer society simulation — play without login on preview.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

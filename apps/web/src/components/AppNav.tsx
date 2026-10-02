@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+/** Single-row nav restored to the familiar main packaging; World stays honest as Bulletin. */
 const links = [
   { href: "/", label: "Home" },
   { href: "/map", label: "Map" },
@@ -20,8 +21,6 @@ const links = [
   { href: "/society", label: "Society" },
   { href: "/world", label: "World" },
   { href: "/admin", label: "Admin" },
-  { href: "/login", label: "Login" },
-  { href: "/register", label: "Register" },
 ];
 
 export function AppNav() {

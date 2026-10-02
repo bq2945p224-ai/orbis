@@ -49,6 +49,8 @@ type Talent = {
 
 type Detail = {
   yieldMultiplier: number;
+  inventory?: Array<{ itemKey: string; quantity: number }>;
+  note?: string;
   workforce: {
     skillKey: string;
     avgSkillLevel: number;
@@ -126,8 +128,10 @@ export default function CompaniesPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-3xl">Companies</h1>
       <p className="text-sm text-ink/70">
-        Found an industry company and hire skilled workers. A farm staffed with high-level farmers
-        harvests more; companies look for talent that matches their primary skill.
+        Found an industry company and hire skilled workers. Salaries are paid from treasury on each
+        world tick (insolvent companies drop employees). Production fills company inventory —
+        founders withdraw goods to personal inventory to sell or consume. Higher workforce skill
+        multiplies yield.
       </p>
       {loading && <p className="text-sm text-ink/60">Loading…</p>}
       {error && <p className="text-sm text-red-700">{error}</p>}
@@ -238,11 +242,21 @@ export default function CompaniesPage() {
                 </p>
                 {co.description && <p className="text-ink/70">{co.description}</p>}
                 {detail && (
-                  <p className="text-xs text-ink/60">
-                    Workforce avg {detail.workforce.skillKey} L{detail.workforce.avgSkillLevel} (
-                    {detail.workforce.workerCount} people) · yield ≈{" "}
-                    {detail.yieldMultiplier.toFixed(2)}×
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-xs text-ink/60">
+                      Workforce avg {detail.workforce.skillKey} L{detail.workforce.avgSkillLevel} (
+                      {detail.workforce.workerCount} people) · yield ≈{" "}
+                      {detail.yieldMultiplier.toFixed(2)}×
+                    </p>
+                    {(detail.inventory ?? []).length > 0 && (
+                      <p className="text-xs text-ink/60">
+                        Inventory:{" "}
+                        {detail.inventory!
+                          .map((i) => `${i.itemKey}×${i.quantity}`)
+                          .join(", ")}
+                      </p>
+                    )}
+                  </div>
                 )}
                 {myCompanyIds.has(co.id) && (
                   <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -301,7 +315,7 @@ export default function CompaniesPage() {
                       disabled={busy}
                       onClick={() => loadDetail(co.id)}
                     >
-                      Workforce
+                      Stock / workforce
                     </button>
                     {foundedIds.has(co.id) && (
                       <button
@@ -312,6 +326,41 @@ export default function CompaniesPage() {
                         Hire talent
                       </button>
                     )}
+                  </div>
+                )}
+                {foundedIds.has(co.id) && (detail?.inventory?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {detail!.inventory!.map((item) => (
+                      <button
+                        key={item.itemKey}
+                        className="border border-ink/20 px-2 py-1 text-xs hover:bg-ink/5 disabled:opacity-50"
+                        disabled={busy || item.quantity <= 0}
+                        onClick={async () => {
+                          setBusy(true);
+                          setError(null);
+                          setInfo(null);
+                          try {
+                            await api("/companies/withdraw", {
+                              method: "POST",
+                              body: JSON.stringify({
+                                companyId: co.id,
+                                itemKey: item.itemKey,
+                                quantity: Math.min(item.quantity, 1),
+                              }),
+                            });
+                            setInfo(`Withdrew 1× ${item.itemKey} to your inventory`);
+                            await loadDetail(co.id);
+                            await refresh();
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : "Withdraw failed");
+                          } finally {
+                            setBusy(false);
+                          }
+                        }}
+                      >
+                        Withdraw 1× {item.itemKey}
+                      </button>
+                    ))}
                   </div>
                 )}
                 {showTalent && (
