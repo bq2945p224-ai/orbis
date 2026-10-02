@@ -116,12 +116,11 @@ export default function WorldPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="font-display text-3xl">World bulletin</h1>
+      <h1 className="font-display text-3xl">World</h1>
       <p className="text-sm text-ink/70">
-        Read-only geopolitical and environment snapshot. Treaties, sanctions, military, wars, and
-        NPCs are <strong>not player-controlled yet</strong> — they do not change rules when you
-        browse them. The one action here is reporting a crime, which opens a court case and attempts
-        a fine against the accused.
+        Bulletin snapshot of geopolitics and environment. Treaties, sanctions, military, wars, and
+        NPCs are <strong>not player-controlled yet</strong> — browsing them does not change rules.
+        The one action here is reporting a crime, which opens a court case and attempts a fine.
       </p>
       {loading && <p className="text-sm text-ink/60">Loading…</p>}
       {error && <p className="text-sm text-red-700">{error}</p>}
