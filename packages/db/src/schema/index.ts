@@ -939,6 +939,9 @@ export const laws = pgTable("laws", {
     .references(() => countries.id),
   title: varchar("title", { length: 128 }).notNull(),
   body: text("body").notNull(),
+  /** Machine-readable effect consumed by the sim (e.g. property_tax_cents_per_day). */
+  effectKey: varchar("effect_key", { length: 64 }),
+  effectValue: integer("effect_value"),
   enactedByCharacterId: uuid("enacted_by_character_id").references(() => characters.id),
   enactedAt: timestamp("enacted_at", { withTimezone: true }).notNull().defaultNow(),
   active: boolean("active").notNull().default(true),

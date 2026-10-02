@@ -102,8 +102,9 @@ export default function AssetsPage() {
       <div>
         <h1 className="font-display text-3xl">Assets</h1>
         <p className="mt-1 text-sm text-ink/70">
-          Your meaningful holdings — land, vehicles, art, equity, and major stockpiles. Everyday
-          junk stays out of this ledger.
+          Portfolio of holdings. Vehicles change ground travel speed and fuel; land and equity are
+          live ownership. Art, jewelry, vessels, and aircraft are currently net-worth / trade goods
+          only — they do not unlock air or sea travel yet.
         </p>
       </div>
 

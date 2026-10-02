@@ -1,6 +1,9 @@
 # Orbis
 
-Persistent multiplayer society simulation. Phases 1–13 are implemented as a playable server-authoritative skeleton (depth intentionally thin for feedback).
+You control one person in a persistent multiplayer world — decisions about work, skills,
+travel, land, companies, markets, health, and politics change real state. Phases 1–10 plus
+consequential politics/economy wiring are playable; geopolitics/military remain read-only
+bulletin data until player actions exist.
 
 ## Stack
 
@@ -27,8 +30,12 @@ npm run dev
 - Web: http://localhost:3000 (proxies `/api` → API)
 - API: http://localhost:4000
 
-## What exists
+## What exists (consequential)
 
-Auth/character · map · money/skills/jobs/travel · property · companies · markets/loans · DMs/orgs · parties/elections/laws · health/disease · treaties/military · crime/courts/environment/NPCs · world-clock sim (payroll, travel, production, infection, tax, elections)
+Auth/character · map · money/skills/jobs/travel · property · companies (payroll + inventory withdraw) · markets/loans (repayment) · parties/elections/laws (tax effects) · citizenship franchise · health/disease (can kill) · crime→court fines · world-clock sim
+
+## Bulletin / not playable yet
+
+Treaties · sanctions · military · wars · NPC flavor · pollution drift (no rule consumers)
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/PHASES.md](docs/PHASES.md).

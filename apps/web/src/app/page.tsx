@@ -26,6 +26,19 @@ function money(cents: number) {
   return `${(cents / 100).toFixed(2)} ORB`;
 }
 
+const consequential = [
+  { href: "/jobs", label: "Jobs", blurb: "Choose work; payroll and skill XP follow." },
+  { href: "/skills", label: "Skills", blurb: "Study gates jobs and multiplies company output." },
+  { href: "/travel", label: "Travel", blurb: "Move; location unlocks jobs, land, and citizenship." },
+  { href: "/property", label: "Property", blurb: "Buy land; tax and resource yield are real." },
+  { href: "/companies", label: "Companies", blurb: "Hire, produce, pay wages, withdraw goods." },
+  { href: "/market", label: "Market", blurb: "Trade inventory; loans accrue and collect." },
+  { href: "/health", label: "Health", blurb: "Eat, drink, treat — hunger and disease can kill." },
+  { href: "/politics", label: "Politics", blurb: "Citizens vote; office-holders set tax law." },
+  { href: "/identity", label: "Identity", blurb: "National ID unlocks franchise in that country." },
+  { href: "/map", label: "Map", blurb: "Claim cells and see the world you act in." },
+];
+
 export default function HomePage() {
   const [me, setMe] = useState<Me | null>(null);
   const [character, setCharacter] = useState<Character>(null);
@@ -51,13 +64,17 @@ export default function HomePage() {
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <p className="text-sm uppercase tracking-[0.2em] text-steel/70">Persistent society</p>
+        <p className="text-sm uppercase tracking-[0.2em] text-steel/70">Player-controlled world</p>
         <h1 className="font-display text-5xl text-ink md:text-6xl">Orbis</h1>
         <p className="max-w-2xl text-lg text-ink/75">
-          You control one person in a living world. One game day lasts four real hours — the
-          simulation determines what happened; players determine what it means.
+          You control one person. Every decision on the primary play surfaces changes money,
+          location, skills, ownership, health, or law — not flavor menus. One game day lasts four
+          real hours.
         </p>
-        <p className="text-sm text-ink/50">Public free preview on Vercel.</p>
+        <p className="max-w-2xl text-sm text-ink/55">
+          Bulletin and some asset categories are honest read-only or thin; they are labeled that
+          way. Treaties, military, and wars are not player-driven yet.
+        </p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
@@ -96,7 +113,7 @@ export default function HomePage() {
         </div>
 
         <div className="border border-ink/10 bg-white/50 p-5">
-          <h2 className="font-display text-xl">Life summary</h2>
+          <h2 className="font-display text-xl">Your person</h2>
           {!me && <p className="mt-3 text-sm text-ink/70">Sign in to see your character.</p>}
           {me && !character && (
             <p className="mt-3 text-sm text-ink/70">
@@ -123,50 +140,33 @@ export default function HomePage() {
                   {character.employment.title} @ {character.employment.employerName}
                 </p>
               )}
-              {character.travel && (
-                <p className="text-steel">Traveling…</p>
+              {!character.employment && (
+                <p className="text-ink/70">
+                  Unemployed — pick a job on{" "}
+                  <Link className="underline" href="/jobs">
+                    Jobs
+                  </Link>
+                  .
+                </p>
               )}
-              <div className="flex flex-wrap gap-3 pt-2">
-                <Link className="underline" href="/character">
-                  Character
-                </Link>
-                <Link className="underline" href="/jobs">
-                  Jobs
-                </Link>
-                <Link className="underline" href="/travel">
-                  Travel
-                </Link>
-                <Link className="underline" href="/map">
-                  Map
-                </Link>
-                <Link className="underline" href="/property">
-                  Property
-                </Link>
-                <Link className="underline" href="/assets">
-                  Assets
-                </Link>
-                <Link className="underline" href="/companies">
-                  Companies
-                </Link>
-                <Link className="underline" href="/market">
-                  Market
-                </Link>
-                <Link className="underline" href="/politics">
-                  Politics
-                </Link>
-                <Link className="underline" href="/health">
-                  Health
-                </Link>
-                <Link className="underline" href="/society">
-                  Society
-                </Link>
-                <Link className="underline" href="/world">
-                  World
-                </Link>
-              </div>
+              {character.travel && <p className="text-steel">Traveling…</p>}
             </div>
           )}
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-display text-2xl">Where your choices bite</h2>
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {consequential.map((item) => (
+            <li key={item.href} className="border border-ink/10 bg-white/40 px-4 py-3 text-sm">
+              <Link className="font-medium underline" href={item.href}>
+                {item.label}
+              </Link>
+              <p className="mt-1 text-ink/65">{item.blurb}</p>
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );

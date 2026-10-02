@@ -61,7 +61,8 @@ export default function IdentityPage() {
       <p className="text-sm text-ink/70">
         Every person holds a World Government passport. Sovereign countries issue national identity
         cards once you meet their residency rules — some require days or weeks inside their
-        borders. Presence uses game time (1 game day = 4 real hours).
+        borders. Presence uses game time (1 game day = 4 real hours). A national ID is required to
+        vote, run for office, or found/join parties in that country.
       </p>
       {loading && <p className="text-sm text-ink/60">Loading…</p>}
       {error && <p className="text-sm text-red-700">{error}</p>}

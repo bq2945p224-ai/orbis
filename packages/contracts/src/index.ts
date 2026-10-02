@@ -27,6 +27,7 @@ export const WorldEventType = {
   LawEnacted: "LawEnacted",
   MarketTrade: "MarketTrade",
   LoanIssued: "LoanIssued",
+  LoanPayment: "LoanPayment",
   Treated: "Treated",
   Infected: "Infected",
   ConsumedSupply: "ConsumedSupply",
@@ -38,6 +39,9 @@ export const WorldEventType = {
   CourtResolved: "CourtResolved",
   PassportIssued: "PassportIssued",
   NationalIdIssued: "NationalIdIssued",
+  CompanyPayroll: "CompanyPayroll",
+  CompanyInventoryWithdrawn: "CompanyInventoryWithdrawn",
+  ElectionOpened: "ElectionOpened",
 } as const;
 
 export type WorldEventType = (typeof WorldEventType)[keyof typeof WorldEventType];
@@ -266,9 +270,31 @@ export const voteSchema = z.object({
   candidateCharacterId: z.string().uuid(),
 });
 
+/** Effects office-holders can attach so laws change real rules. */
+export const LAW_EFFECT_KEYS = [
+  "property_tax_cents_per_day",
+] as const;
+
+export type LawEffectKey = (typeof LAW_EFFECT_KEYS)[number];
+
 export const enactLawSchema = z.object({
   title: z.string().min(2).max(128),
   body: z.string().min(2).max(5000),
+  effectKey: z.enum(LAW_EFFECT_KEYS).optional(),
+  /** Cents/day for property_tax_cents_per_day (0–50_000). */
+  effectValue: z.number().int().min(0).max(50_000).optional(),
+});
+
+export const openElectionSchema = z.object({
+  office: z.string().min(2).max(64).optional(),
+  /** Sim-time duration open; default ~7 game days. */
+  durationMs: z.number().int().min(60_000).max(30 * 24 * 60 * 60 * 1000).optional(),
+});
+
+export const companyWithdrawSchema = z.object({
+  companyId: z.string().uuid(),
+  itemKey: z.string().min(2).max(64),
+  quantity: z.number().int().positive().max(10_000),
 });
 
 export const marketListSchema = z.object({

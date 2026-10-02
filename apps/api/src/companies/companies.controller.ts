@@ -53,6 +53,12 @@ export class CompaniesController {
     return this.companies.produce(account, body);
   }
 
+  @Post("withdraw")
+  async withdraw(@CurrentAccount() account: AuthedAccount, @Body() body: unknown) {
+    this.auth.requireVerified(account);
+    return this.companies.withdrawInventory(account, body);
+  }
+
   @Post(":id/resign-employee")
   async resignEmployee(
     @CurrentAccount() account: AuthedAccount,

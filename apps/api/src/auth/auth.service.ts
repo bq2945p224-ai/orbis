@@ -22,9 +22,7 @@ import {
   characterPassports,
   districts,
   employers,
-  employments,
   inventories,
-  jobPostings,
   ledgerEntries,
   worldClock,
   and,
@@ -221,40 +219,7 @@ export class AuthService {
       },
     ]);
 
-    // Auto-hire into World Government Settler job
-    if (wg) {
-      const [settlerJob] = await db
-        .select()
-        .from(jobPostings)
-        .where(
-          and(
-            eq(jobPostings.employerId, wg.id),
-            eq(jobPostings.title, "Settler"),
-            eq(jobPostings.open, true),
-          ),
-        )
-        .limit(1);
-      if (settlerJob) {
-        await db.insert(employments).values({
-          characterId: character.id,
-          employerId: wg.id,
-          jobPostingId: settlerJob.id,
-          title: settlerJob.title,
-          salaryCentsPerDay: settlerJob.salaryCentsPerDay,
-        });
-        await this.events.emit({
-          type: WorldEventType.EmployeeHired,
-          payload: {
-            employmentTitle: settlerJob.title,
-            employer: "World Government",
-            via: "signup",
-          },
-          actorCharacterId: character.id,
-          subjectType: "character",
-          subjectId: character.id,
-        });
-      }
-    }
+    // First job is a player choice — Settler remains available on Jobs; no auto-hire.
 
     await this.audit.record("account.register", {
       accountId: account.id,

@@ -47,6 +47,12 @@ export class PoliticsController {
     return this.politics.vote(account, body);
   }
 
+  @Post("elections/open")
+  async openElection(@CurrentAccount() account: AuthedAccount, @Body() body: unknown) {
+    this.auth.requireVerified(account);
+    return this.politics.openElection(account, body);
+  }
+
   @Get("offices")
   async listOffices(@CurrentAccount() account: AuthedAccount) {
     this.auth.requireVerified(account);
