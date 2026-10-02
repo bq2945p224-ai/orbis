@@ -83,6 +83,7 @@ export default function WorldPage() {
   const [accusedId, setAccusedId] = useState("");
   const [crimeKind, setCrimeKind] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -115,75 +116,23 @@ export default function WorldPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="font-display text-3xl">World</h1>
+      <h1 className="font-display text-3xl">World bulletin</h1>
       <p className="text-sm text-ink/70">
-        Treaties, sanctions, military, wars, environment, justice, and NPCs.
+        Read-only geopolitical and environment snapshot. Treaties, sanctions, military, wars, and
+        NPCs are <strong>not player-controlled yet</strong> — they do not change rules when you
+        browse them. The one action here is reporting a crime, which opens a court case and attempts
+        a fine against the accused.
       </p>
       {loading && <p className="text-sm text-ink/60">Loading…</p>}
       {error && <p className="text-sm text-red-700">{error}</p>}
-
-      <section className="space-y-2">
-        <h2 className="font-display text-xl">Treaties</h2>
-        <ul className="text-sm space-y-2">
-          {treaties.map((row) => (
-            <li key={row.id} className="border border-ink/10 bg-white/50 p-3">
-              <p className="font-medium">{row.title}</p>
-              <p className="text-ink/70">{row.body}</p>
-            </li>
-          ))}
-        </ul>
-        {!loading && treaties.length === 0 && (
-          <p className="text-sm text-ink/60">No treaties.</p>
-        )}
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="font-display text-xl">Sanctions</h2>
-        <ul className="text-sm space-y-1">
-          {sanctions.map((row) => (
-            <li key={row.id} className="border border-ink/10 bg-white/50 px-3 py-2">
-              {row.fromCountryId} → {row.toCountryId}: {row.reason}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="font-display text-xl">Military</h2>
-        <ul className="text-sm space-y-1">
-          {military.map((row) => (
-            <li key={row.id} className="border border-ink/10 bg-white/50 px-3 py-2">
-              {row.name} · {row.countryName}
-              {row.districtName ? ` · ${row.districtName}` : ""} · strength {row.strength}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="font-display text-xl">Wars</h2>
-        <ul className="text-sm space-y-1">
-          {wars.map((row) => (
-            <li key={row.id} className="border border-ink/10 bg-white/50 px-3 py-2">
-              {row.aggressorCountryId} vs {row.defenderCountryId} · {row.status}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="font-display text-xl">Environment</h2>
-        <ul className="text-sm space-y-1 max-h-48 overflow-y-auto">
-          {environment.map((row, i) => (
-            <li key={i} className="border border-ink/10 bg-white/50 px-3 py-2">
-              {row.districtName}, {row.cityName} · pollution {row.pollution}
-            </li>
-          ))}
-        </ul>
-      </section>
+      {info && <p className="text-sm text-ink/70">{info}</p>}
 
       <section className="border border-ink/10 bg-white/60 p-5 space-y-3 text-sm">
         <h2 className="font-display text-xl">Report crime</h2>
+        <p className="text-xs text-ink/60">
+          Creates a court case immediately. On success the accused is fined (theft/fraud 150 ORB,
+          assault 250 ORB, other 80 ORB). If they cannot pay, the judgment stays unpaid.
+        </p>
         <input
           className="w-full border border-ink/20 bg-white/80 px-2 py-1.5"
           placeholder="Accused character ID"
@@ -202,8 +151,13 @@ export default function WorldPage() {
           onClick={async () => {
             setBusy(true);
             setError(null);
+            setInfo(null);
             try {
-              await api("/world/crimes", {
+              const result = await api<{
+                verdict: string;
+                fineCents: number;
+                status: string;
+              }>("/world/crimes", {
                 method: "POST",
                 body: JSON.stringify({
                   accusedCharacterId: accusedId.trim(),
@@ -212,6 +166,9 @@ export default function WorldPage() {
               });
               setAccusedId("");
               setCrimeKind("");
+              setInfo(
+                `Court ${result.verdict}: fine ${money(result.fineCents)} · status ${result.status}`,
+              );
               await refresh();
             } catch (err) {
               setError(err instanceof Error ? err.message : "Report failed");
@@ -250,7 +207,63 @@ export default function WorldPage() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-display text-xl">NPCs</h2>
+        <h2 className="font-display text-xl">Environment (passive drift)</h2>
+        <p className="text-xs text-ink/55">
+          Pollution numbers drift on the world tick; they do not yet affect production, health, or
+          travel.
+        </p>
+        <ul className="text-sm space-y-1 max-h-48 overflow-y-auto">
+          {environment.map((row, i) => (
+            <li key={i} className="border border-ink/10 bg-white/50 px-3 py-2">
+              {row.districtName}, {row.cityName} · pollution {row.pollution}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="space-y-2 opacity-80">
+        <h2 className="font-display text-xl">Seeded geopolitics (not playable)</h2>
+        <p className="text-xs text-ink/55">
+          Display only until player diplomacy and military actions exist.
+        </p>
+        <h3 className="text-sm font-medium pt-2">Treaties</h3>
+        <ul className="text-sm space-y-2">
+          {treaties.map((row) => (
+            <li key={row.id} className="border border-ink/10 bg-white/50 p-3">
+              <p className="font-medium">{row.title}</p>
+              <p className="text-ink/70">{row.body}</p>
+            </li>
+          ))}
+        </ul>
+        {!loading && treaties.length === 0 && (
+          <p className="text-sm text-ink/60">No treaties.</p>
+        )}
+        <h3 className="text-sm font-medium pt-2">Sanctions</h3>
+        <ul className="text-sm space-y-1">
+          {sanctions.map((row) => (
+            <li key={row.id} className="border border-ink/10 bg-white/50 px-3 py-2">
+              {row.fromCountryId} → {row.toCountryId}: {row.reason}
+            </li>
+          ))}
+        </ul>
+        <h3 className="text-sm font-medium pt-2">Military</h3>
+        <ul className="text-sm space-y-1">
+          {military.map((row) => (
+            <li key={row.id} className="border border-ink/10 bg-white/50 px-3 py-2">
+              {row.name} · {row.countryName}
+              {row.districtName ? ` · ${row.districtName}` : ""} · strength {row.strength}
+            </li>
+          ))}
+        </ul>
+        <h3 className="text-sm font-medium pt-2">Wars</h3>
+        <ul className="text-sm space-y-1">
+          {wars.map((row) => (
+            <li key={row.id} className="border border-ink/10 bg-white/50 px-3 py-2">
+              {row.aggressorCountryId} vs {row.defenderCountryId} · {row.status}
+            </li>
+          ))}
+        </ul>
+        <h3 className="text-sm font-medium pt-2">NPCs</h3>
         <ul className="text-sm space-y-1 max-h-48 overflow-y-auto">
           {npcs.map((row) => (
             <li key={row.id} className="border border-ink/10 bg-white/50 px-3 py-2">

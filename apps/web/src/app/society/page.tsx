@@ -60,7 +60,11 @@ export default function SocietyPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-3xl">Society</h1>
-      <p className="text-sm text-ink/70">Profile, messages, notifications, and organizations.</p>
+      <p className="text-sm text-ink/70">
+        Player-to-player social layer: bio, DMs (by character ID — no inbox UI yet), notifications,
+        and org memberships. Organizations record join/leave history only; they do not unlock
+        channels, government powers, or economy rules yet.
+      </p>
       {loading && <p className="text-sm text-ink/60">Loading…</p>}
       {error && <p className="text-sm text-red-700">{error}</p>}
 

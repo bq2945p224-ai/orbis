@@ -69,7 +69,8 @@ export default function JobsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-3xl">Jobs</h1>
       <p className="text-sm text-ink/70">
-        New players start employed by the World Government (Settler). Working a job grants passive
+        You choose your first job — World Government Settler is available if you want a safe start.
+        Working a job grants passive
         XP toward that job&apos;s skill. Employers gate roles by skill level — and player-owned
         companies (e.g. farms) harvest more when their workforce is highly skilled, so high levels
         get hired first. Salaries accrue in game time (1 game day = 4 real hours).

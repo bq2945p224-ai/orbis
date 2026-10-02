@@ -27,10 +27,12 @@ Generic orgs, memberships/roles, join/leave history facts.
 ## Phase 7 — Politics (done, v1)
 
 Parties, elections, candidacies, votes, offices, law enactment by office holders.
+National ID required for franchise; office-holders can open elections; laws may carry
+structured effects (e.g. property tax) consumed by the world tick.
 
 ## Phase 8 — Economy (done, v1)
 
-Market listings/trades, system loans, player contracts table (basic).
+Market listings/trades, system loans with tick interest/repayment, player contracts table (basic).
 
 ## Phase 9 — Healthcare (done, v1)
 
@@ -40,18 +42,22 @@ Character health, clinic treatment, vaccination.
 
 Pathogens, district transmission + damage on world tick.
 
-## Phase 11 — International (done, v1)
+## Phase 11 — International (data model, not playable)
 
-Treaties and sanctions data model + read APIs (seed/extend later).
+Treaties and sanctions tables + read APIs only. No player diplomacy actions yet.
+Shown in the World bulletin as read-only.
 
-## Phase 12 — Military (done, v1)
+## Phase 12 — Military (data model, not playable)
 
-Units, wars, operations tables + read APIs; seed guard unit.
+Units, wars, operations tables + read APIs; seed guard unit. No player military actions.
 
-## Phase 13 — Advanced (done, v1)
+## Phase 13 — Advanced (partial)
 
-Crime reports, court cases, environment metrics drift, NPCs.
+Crime reports open a summary court case and attempt a fine. Environment metrics drift
+passively (not rule-consuming). NPCs are seeded flavor only.
 
 ---
 
-**Status:** Full outlined society skeleton is playable end-to-end with server authority. Depth and balance intentionally thin — next pass is feedback-driven polish.
+**Status:** Core life loop (work, skills, travel, land, companies, markets, survival, franchise
+politics) is consequential under server authority. Geopolitics/military remain bulletin data —
+do not present them as player systems until actions exist.
