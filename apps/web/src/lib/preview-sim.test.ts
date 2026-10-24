@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultGuestState, jobById } from "./preview-guest";
+import { defaultGuestState, encodeGuest, decodeGuest, jobById } from "./preview-guest";
 import { advanceGuestSim, addInv, takeInv, fineForCrimeKind } from "./preview-sim";
 
 describe("advanceGuestSim", () => {
@@ -37,5 +37,38 @@ describe("advanceGuestSim", () => {
     addInv(state, "bread", 2);
     expect(takeInv(state, "food", 1)).toBe(true);
     expect(fineForCrimeKind("theft")).toBe(15_000);
+  });
+
+  it("keeps cookie under browser 4KB after consequential play", () => {
+    const state = defaultGuestState();
+    state.jobId = "job-settler";
+    state.balanceCents = 0;
+    state.crimes.push({
+      id: "c1",
+      accusedName: "Guest Traveler",
+      kind: "theft",
+      districtName: "Harbor Ward",
+      status: "adjudicated",
+      createdAt: new Date().toISOString(),
+    });
+    state.courts.push({
+      id: "ct1",
+      crimeKind: "theft",
+      accusedName: "Guest Traveler",
+      status: "resolved",
+      verdict: "paid",
+      fineCents: 15_000,
+    });
+    state.ledger.unshift({
+      id: "tx1",
+      amountCents: 12_500,
+      reason: "Court fine (theft)",
+      direction: "debit",
+      createdAt: new Date().toISOString(),
+    });
+    const enc = encodeGuest(state);
+    expect(enc.startsWith("z.")).toBe(true);
+    expect(enc.length).toBeLessThan(3500);
+    expect(decodeGuest(enc)?.balanceCents).toBe(0);
   });
 });

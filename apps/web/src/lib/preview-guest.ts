@@ -1,7 +1,10 @@
 import { SKILL_CATALOG } from "@orbis/contracts";
+import { deflateSync, inflateSync } from "node:zlib";
 import { cookies } from "next/headers";
 
 export const GUEST_COOKIE = "orbis_guest_v2";
+/** Prefix marks zlib-compressed payloads (stay under ~4KB browser cookie limit). */
+const COMPRESSED_PREFIX = "z.";
 
 export type SimLedger = {
   id: string;
@@ -258,27 +261,18 @@ export function defaultGuestState(): GuestState {
     partyName: null,
     nationalIds: [],
     travel: null,
-    crimes: [
-      {
-        id: "crime-1",
-        accusedName: "Unknown",
-        kind: "theft",
-        districtName: "Harbor Ward",
-        status: "reported",
-        createdAt: new Date(Date.now() - 86_400_000).toISOString(),
-      },
-    ],
+    crimes: [],
     courts: [],
     laws: [
       {
         id: "law-1",
         title: "Harbor Property Levy",
-        body: "Modest daily tax on owned parcels.",
+        body: "Daily tax on owned parcels.",
         effectKey: "property_tax_cents_per_day",
         effectValue: "25",
       },
     ],
-    profileBio: "Preview guest — no login required.",
+    profileBio: "Preview guest.",
     hasVehicle: false,
     createdAt: now,
     presenceStartedAt: now,
@@ -314,15 +308,69 @@ export function defaultGuestState(): GuestState {
   };
 }
 
+/** Drop zero skills and cap lists so the cookie stays small after play. */
+export function compactGuest(state: GuestState): GuestState {
+  const skills: GuestState["skills"] = {};
+  for (const [key, row] of Object.entries(state.skills)) {
+    if (row.level > 0 || row.experience > 0 || key === state.focusSkillKey) {
+      skills[key] = row;
+    }
+  }
+  return {
+    ...state,
+    skills,
+    food: state.inventory.find((i) => i.itemKey === "food")?.quantity ?? 0,
+    water: state.inventory.find((i) => i.itemKey === "water")?.quantity ?? 0,
+    inventory: state.inventory.filter((i) => i.quantity > 0).slice(0, 20),
+    marketListings: state.marketListings.slice(0, 8),
+    loans: state.loans.slice(0, 4),
+    companies: state.companies.slice(0, 3).map((c) => ({
+      ...c,
+      inventory: c.inventory.filter((i) => i.quantity > 0).slice(0, 12),
+      employees: (c.employees ?? []).filter((e) => !e.endedAt).slice(0, 8),
+    })),
+    properties: state.properties.slice(0, 8),
+    crimes: state.crimes.slice(0, 4),
+    courts: state.courts.slice(0, 4),
+    laws: state.laws.slice(0, 6),
+    ledger: (state.ledger ?? []).slice(0, 6),
+    nationalIds: state.nationalIds.slice(0, 3),
+    election: {
+      ...state.election,
+      votes: state.election.votes.slice(-20),
+      candidates: state.election.candidates.slice(0, 6),
+    },
+  };
+}
+
 export function encodeGuest(state: GuestState) {
-  return Buffer.from(JSON.stringify(state), "utf8").toString("base64url");
+  const json = Buffer.from(JSON.stringify(compactGuest(state)), "utf8");
+  const compressed = deflateSync(json, { level: 9 });
+  return COMPRESSED_PREFIX + compressed.toString("base64url");
 }
 
 export function decodeGuest(raw: string | undefined): GuestState | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as GuestState;
+    let json: string;
+    if (raw.startsWith(COMPRESSED_PREFIX)) {
+      json = inflateSync(Buffer.from(raw.slice(COMPRESSED_PREFIX.length), "base64url")).toString(
+        "utf8",
+      );
+    } else {
+      json = Buffer.from(raw, "base64url").toString("utf8");
+    }
+    const parsed = JSON.parse(json) as GuestState;
     if (!parsed?.characterId || typeof parsed.balanceCents !== "number") return null;
+    // Rehydrate omitted zero skills so UI catalog still works
+    for (const skill of SKILL_CATALOG.slice(0, 12)) {
+      if (!parsed.skills[skill.key]) {
+        parsed.skills[skill.key] = {
+          level: skill.key === "administration" ? 1 : 0,
+          experience: 0,
+        };
+      }
+    }
     return parsed;
   } catch {
     return null;

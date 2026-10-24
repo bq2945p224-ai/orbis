@@ -99,7 +99,7 @@ export function pushLedger(
     direction,
     createdAt: new Date().toISOString(),
   });
-  state.ledger = state.ledger.slice(0, 12);
+  state.ledger = state.ledger.slice(0, 6);
 }
 
 export function activeLawValue(state: GuestState, effectKey: string): number | null {
