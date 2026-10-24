@@ -6,9 +6,13 @@ import {
 } from "@nestjs/common";
 import {
   characters,
+  cities,
+  districts,
   inventories,
+  laws,
   loans,
   marketListings,
+  regions,
   and,
   desc,
   eq,
@@ -136,7 +140,10 @@ export class MarketsService {
       throw new BadRequestException("Cannot buy your own listing");
     }
 
-    const totalCents = listing.priceCentsEach * input.quantity;
+    const subtotalCents = listing.priceCentsEach * input.quantity;
+    const salesTaxBps = await this.activeSalesTaxBps(buyer.locationDistrictId);
+    const taxCents = Math.floor((subtotalCents * salesTaxBps) / 10_000);
+    const totalCents = subtotalCents + taxCents;
     const idempotencyKey = `market-buy:${listing.id}:${buyer.id}:${input.quantity}`;
 
     await this.economy.debitCharacter(
@@ -144,13 +151,20 @@ export class MarketsService {
       totalCents,
       "market_purchase",
       idempotencyKey,
-      { listingId: listing.id, itemKey: listing.itemKey, quantity: input.quantity },
+      {
+        listingId: listing.id,
+        itemKey: listing.itemKey,
+        quantity: input.quantity,
+        subtotalCents,
+        taxCents,
+        salesTaxBps,
+      },
     );
 
     if (listing.sellerCharacterId) {
       await this.economy.creditCharacter(
         listing.sellerCharacterId,
-        totalCents,
+        subtotalCents,
         "market_sale",
         `${idempotencyKey}:seller`,
         { listingId: listing.id, buyerCharacterId: buyer.id },
@@ -206,8 +220,41 @@ export class MarketsService {
       listingId: listing.id,
       itemKey: listing.itemKey,
       quantity: input.quantity,
+      subtotalCents,
+      taxCents,
+      salesTaxBps,
       totalCents,
     };
+  }
+
+  /** Latest active sales_tax_bps law for the buyer's country (0 if none). */
+  private async activeSalesTaxBps(locationDistrictId: string | null): Promise<number> {
+    if (!locationDistrictId) return 0;
+    const db = this.dbService.db;
+    const [place] = await db
+      .select({ countryId: regions.countryId })
+      .from(districts)
+      .innerJoin(cities, eq(districts.cityId, cities.id))
+      .innerJoin(regions, eq(cities.regionId, regions.id))
+      .where(eq(districts.id, locationDistrictId))
+      .limit(1);
+    if (!place?.countryId) return 0;
+
+    const [law] = await db
+      .select({ effectValue: laws.effectValue })
+      .from(laws)
+      .where(
+        and(
+          eq(laws.countryId, place.countryId),
+          eq(laws.active, true),
+          eq(laws.effectKey, "sales_tax_bps"),
+        ),
+      )
+      .orderBy(desc(laws.enactedAt))
+      .limit(1);
+    const value = law?.effectValue;
+    if (value == null || !Number.isFinite(Number(value))) return 0;
+    return Math.max(0, Math.min(10_000, Number(value)));
   }
 
   async requestLoan(account: AuthedAccount, body: unknown) {

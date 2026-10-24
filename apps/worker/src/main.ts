@@ -14,6 +14,8 @@ import {
   processInfections,
   processNeeds,
   processPayroll,
+  processCompanyPayroll,
+  processLoanPayments,
   processProduction,
   processPropertyTax,
   processLandResources,
@@ -71,6 +73,16 @@ async function main() {
           const studyXp = await processStudyXp(db, result.deltaMs);
           const studyBilling = await processStudySubscriptions(db);
           const payroll = await processPayroll(db, result.deltaMs, result.tickVersion);
+          const companyPayroll = await processCompanyPayroll(
+            db,
+            result.deltaMs,
+            result.tickVersion,
+          );
+          const loanPayments = await processLoanPayments(
+            db,
+            result.deltaMs,
+            result.tickVersion,
+          );
           const production = await processProduction(db);
           const infection = await processInfections(db, result.tickVersion);
           const needs = await processNeeds(db, result.deltaMs);
@@ -84,6 +96,8 @@ async function main() {
             studyXp,
             studyBilling,
             payroll,
+            companyPayroll,
+            loanPayments,
             production,
             infection,
             needs,
@@ -98,6 +112,8 @@ async function main() {
             studyXp,
             studyBilling,
             payroll,
+            companyPayroll,
+            loanPayments,
             production,
             infection,
             needs,

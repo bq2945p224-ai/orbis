@@ -16,10 +16,20 @@ import {
   characterSkills,
   characterStudy,
   parcelOwnerships,
+  landParcels,
+  buildings,
+  districts,
+  cities,
+  regions,
+  laws,
+  loans,
+  companies,
+  companyEmployees,
   elections,
   votes,
   governmentOffices,
   and,
+  desc,
   eq,
   isNull,
   lte,
@@ -336,6 +346,210 @@ export async function processPayroll(
   return { paid, totalCents };
 }
 
+/**
+ * Pay company employees from company treasury. Hire salary is real money —
+ * insolvent companies skip pay and end the employment.
+ */
+export async function processCompanyPayroll(
+  db: ReturnType<typeof createDb>,
+  deltaMs: number,
+  tickVersion: number,
+) {
+  if (deltaMs <= 0) return { paid: 0, ended: 0, totalCents: 0 };
+
+  const active = await db
+    .select({
+      employmentId: companyEmployees.id,
+      companyId: companyEmployees.companyId,
+      characterId: companyEmployees.characterId,
+      salaryCentsPerDay: companyEmployees.salaryCentsPerDay,
+      treasuryCents: companies.treasuryCents,
+      primarySkillKey: companies.primarySkillKey,
+    })
+    .from(companyEmployees)
+    .innerJoin(companies, eq(companyEmployees.companyId, companies.id))
+    .where(isNull(companyEmployees.endedAt));
+
+  let paid = 0;
+  let ended = 0;
+  let totalCents = 0;
+
+  for (const job of active) {
+    const amount = Math.floor((job.salaryCentsPerDay * deltaMs) / DAY_MS);
+    if (amount <= 0) continue;
+
+    if (job.treasuryCents < amount) {
+      await db
+        .update(companyEmployees)
+        .set({ endedAt: new Date() })
+        .where(
+          and(eq(companyEmployees.id, job.employmentId), isNull(companyEmployees.endedAt)),
+        );
+      ended += 1;
+      continue;
+    }
+
+    if (job.primarySkillKey) {
+      const jobXp = (xpPerHour("job") * deltaMs) / HOUR_MS;
+      await applySkillXpGain(db, job.characterId, job.primarySkillKey, jobXp, new Date());
+    }
+
+    const tickKey = `company-payroll:${job.employmentId}:tick:${tickVersion}`;
+
+    try {
+      await db.transaction(async (tx) => {
+        const [company] = await tx
+          .select()
+          .from(companies)
+          .where(eq(companies.id, job.companyId))
+          .limit(1);
+        if (!company || company.treasuryCents < amount) {
+          throw new Error("insolvent");
+        }
+
+        let [wallet] = await tx
+          .select()
+          .from(bankAccounts)
+          .where(eq(bankAccounts.characterId, job.characterId))
+          .limit(1);
+        if (!wallet) {
+          [wallet] = await tx
+            .insert(bankAccounts)
+            .values({ characterId: job.characterId, balanceCents: 0 })
+            .returning();
+        }
+        if (!wallet) return;
+
+        await tx
+          .update(companies)
+          .set({ treasuryCents: company.treasuryCents - amount })
+          .where(eq(companies.id, company.id));
+
+        await tx
+          .update(bankAccounts)
+          .set({
+            balanceCents: wallet.balanceCents + amount,
+            updatedAt: new Date(),
+          })
+          .where(eq(bankAccounts.id, wallet.id));
+
+        await tx.insert(ledgerEntries).values({
+          idempotencyKey: tickKey,
+          fromAccountId: null,
+          toAccountId: wallet.id,
+          amountCents: amount,
+          reason: "company_salary",
+          metadata: {
+            employmentId: job.employmentId,
+            companyId: job.companyId,
+          },
+        });
+      });
+      paid += 1;
+      totalCents += amount;
+    } catch {
+      await db
+        .update(companyEmployees)
+        .set({ endedAt: new Date() })
+        .where(
+          and(eq(companyEmployees.id, job.employmentId), isNull(companyEmployees.endedAt)),
+        );
+      ended += 1;
+    }
+  }
+
+  return { paid, ended, totalCents };
+}
+
+/** Accrue interest and collect loan payments from borrower wallets. */
+export async function processLoanPayments(
+  db: ReturnType<typeof createDb>,
+  deltaMs: number,
+  tickVersion: number,
+) {
+  if (deltaMs <= 0) return { paid: 0, defaulted: 0, totalCents: 0 };
+
+  const active = await db.select().from(loans).where(eq(loans.status, "active"));
+  let paid = 0;
+  let defaulted = 0;
+  let totalCents = 0;
+
+  for (const loan of active) {
+    // Daily interest on remaining balance + principal amortization (~1/30 of remaining/day).
+    const interest = Math.floor(
+      (loan.remainingCents * loan.interestBps * deltaMs) / (10_000 * DAY_MS),
+    );
+    const principalBite = Math.max(
+      1,
+      Math.floor((loan.remainingCents * deltaMs) / (30 * DAY_MS)),
+    );
+    const due = interest + principalBite;
+    if (due <= 0) continue;
+
+    const tickKey = `loan-payment:${loan.id}:tick:${tickVersion}`;
+
+    try {
+      await db.transaction(async (tx) => {
+        const [wallet] = await tx
+          .select()
+          .from(bankAccounts)
+          .where(eq(bankAccounts.characterId, loan.borrowerCharacterId))
+          .limit(1);
+
+        if (!wallet || wallet.balanceCents < due) {
+          await tx
+            .update(loans)
+            .set({ status: "defaulted" })
+            .where(and(eq(loans.id, loan.id), eq(loans.status, "active")));
+          throw new Error("default");
+        }
+
+        const nextRemaining = Math.max(0, loan.remainingCents + interest - due);
+        await tx
+          .update(bankAccounts)
+          .set({
+            balanceCents: wallet.balanceCents - due,
+            updatedAt: new Date(),
+          })
+          .where(eq(bankAccounts.id, wallet.id));
+
+        await tx.insert(ledgerEntries).values({
+          idempotencyKey: tickKey,
+          fromAccountId: wallet.id,
+          toAccountId: null,
+          amountCents: due,
+          reason: "loan_payment",
+          metadata: { loanId: loan.id, interest, principalBite },
+        });
+
+        await tx.execute(sql`
+          INSERT INTO system_accounts (key, balance_cents)
+          VALUES ('world_treasury', ${due})
+          ON CONFLICT (key) DO UPDATE
+            SET balance_cents = system_accounts.balance_cents + ${due}, updated_at = now()
+        `);
+
+        await tx
+          .update(loans)
+          .set({
+            remainingCents: nextRemaining,
+            status: nextRemaining <= 0 ? "paid" : "active",
+          })
+          .where(eq(loans.id, loan.id));
+      });
+      paid += 1;
+      totalCents += due;
+    } catch (err) {
+      if (err instanceof Error && err.message === "default") {
+        defaulted += 1;
+      }
+      // idempotency conflict — skip
+    }
+  }
+
+  return { paid, defaulted, totalCents };
+}
+
 /** Grant XP to whoever is studying. deltaMs is sim time (accelerated). */
 export async function processStudyXp(db: ReturnType<typeof createDb>, deltaMs: number) {
   if (deltaMs <= 0) return { students: 0, leveled: 0 };
@@ -644,14 +858,40 @@ export async function processInfections(db: ReturnType<typeof createDb>, tickVer
         }
       }
       const dmg = Math.max(1, Math.floor(pathogen.severity / 5));
+      const currentHp = carrier.hp ?? 100;
+      const nextHp = Math.max(0, currentHp - dmg);
       await db
         .update(characterHealth)
         .set({
-          hp: sql`GREATEST(1, ${characterHealth.hp} - ${dmg})`,
+          hp: nextHp,
           updatedAt: new Date(),
         })
         .where(eq(characterHealth.characterId, carrier.id));
       damaged += 1;
+
+      if (nextHp <= 0) {
+        await db
+          .update(characters)
+          .set({
+            status: "dead",
+            diedAt: new Date(),
+            causeOfDeath: `disease:${pathogen.key}`,
+          })
+          .where(and(eq(characters.id, carrier.id), eq(characters.status, "alive")));
+
+        const [event] = await db
+          .insert(worldEvents)
+          .values({
+            type: WorldEventType.CharacterDied,
+            payload: { cause: `disease:${pathogen.key}`, pathogenKey: pathogen.key },
+            actorCharacterId: carrier.id,
+            subjectType: "character",
+            subjectId: carrier.id,
+            simTime: new Date(),
+          })
+          .returning();
+        if (event) await db.insert(outbox).values({ eventId: event.id });
+      }
     }
   }
 
@@ -681,10 +921,23 @@ export async function processNeeds(db: ReturnType<typeof createDb>, deltaMs: num
   let damaged = 0;
   let died = 0;
 
+  const shelteredOwners = new Set<string>();
+  const shelterRows = await db
+    .select({ ownerCharacterId: parcelOwnerships.ownerCharacterId })
+    .from(parcelOwnerships)
+    .innerJoin(buildings, eq(buildings.parcelId, parcelOwnerships.parcelId))
+    .where(sql`${parcelOwnerships.ownerCharacterId} is not null`);
+  for (const s of shelterRows) {
+    if (s.ownerCharacterId) shelteredOwners.add(s.ownerCharacterId);
+  }
+
   for (const row of living) {
-    let hunger = row.health.hunger - HUNGER_DRAIN_PER_HOUR * hours;
+    const shelter = shelteredOwners.has(row.characterId);
+    const hungerRate = HUNGER_DRAIN_PER_HOUR * (shelter ? 0.75 : 1);
+    const energyRate = ENERGY_DRAIN_PER_HOUR * (shelter ? 0.5 : 1);
+    let hunger = row.health.hunger - hungerRate * hours;
     let thirst = row.health.thirst - THIRST_DRAIN_PER_HOUR * hours;
-    let energy = row.health.energy - ENERGY_DRAIN_PER_HOUR * hours;
+    let energy = row.health.energy - energyRate * hours;
     let hp = row.health.hp;
 
     if (hunger < 55) {
@@ -787,21 +1040,58 @@ export async function processNeeds(db: ReturnType<typeof createDb>, deltaMs: num
   return { characters: living.length, autoAte, autoDrank, damaged, died };
 }
 
+const DEFAULT_PROPERTY_TAX_CENTS_PER_DAY = 200;
+
 export async function processPropertyTax(
   db: ReturnType<typeof createDb>,
   deltaMs: number,
   tickVersion: number,
 ) {
   if (deltaMs < DAY_MS / 24) return { taxed: 0 };
-  // Charge a tiny daily property tax once per ~sim-day chunk using tick cadence
-  const taxPerDay = 200;
-  const amount = Math.floor((taxPerDay * deltaMs) / DAY_MS);
-  if (amount <= 0) return { taxed: 0 };
 
-  const owners = await db.select().from(parcelOwnerships);
+  const taxLaws = await db
+    .select({
+      countryId: laws.countryId,
+      effectValue: laws.effectValue,
+      enactedAt: laws.enactedAt,
+    })
+    .from(laws)
+    .where(
+      and(
+        eq(laws.active, true),
+        eq(laws.effectKey, "property_tax_cents_per_day"),
+      ),
+    )
+    .orderBy(desc(laws.enactedAt));
+
+  const taxByCountry = new Map<string, number>();
+  for (const law of taxLaws) {
+    if (law.effectValue == null) continue;
+    if (!taxByCountry.has(law.countryId)) {
+      taxByCountry.set(law.countryId, law.effectValue);
+    }
+  }
+
+  const owners = await db
+    .select({
+      parcelId: parcelOwnerships.parcelId,
+      ownerCharacterId: parcelOwnerships.ownerCharacterId,
+      countryId: regions.countryId,
+    })
+    .from(parcelOwnerships)
+    .innerJoin(landParcels, eq(parcelOwnerships.parcelId, landParcels.id))
+    .leftJoin(districts, eq(landParcels.districtId, districts.id))
+    .leftJoin(cities, eq(districts.cityId, cities.id))
+    .leftJoin(regions, eq(cities.regionId, regions.id));
+
   let taxed = 0;
   for (const own of owners) {
     if (!own.ownerCharacterId) continue;
+    const lawTax = own.countryId ? taxByCountry.get(own.countryId) : undefined;
+    const taxPerDay = lawTax ?? DEFAULT_PROPERTY_TAX_CENTS_PER_DAY;
+    const amount = Math.floor((taxPerDay * deltaMs) / DAY_MS);
+    if (amount <= 0) continue;
+
     const key = `property-tax:${own.parcelId}:tick:${tickVersion}`;
     try {
       await db.transaction(async (tx) => {
@@ -822,7 +1112,11 @@ export async function processPropertyTax(
           toAccountId: null,
           amountCents: amount,
           reason: "property_tax",
-          metadata: { parcelId: own.parcelId },
+          metadata: {
+            parcelId: own.parcelId,
+            taxPerDay,
+            countryId: own.countryId ?? null,
+          },
         });
         await tx.execute(sql`
           INSERT INTO system_accounts (key, balance_cents)

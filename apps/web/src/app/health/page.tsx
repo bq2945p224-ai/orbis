@@ -115,8 +115,9 @@ export default function HealthPage() {
       <div>
         <h1 className="font-display text-3xl">Health</h1>
         <p className="mt-1 text-sm text-ink/70">
-          Keep HP, hunger, thirst, and energy up. Buy food and water where markets exist — deserts
-          have none. You auto-eat/drink from inventory as needs drop.
+          Keep HP, hunger, thirst, and energy up. Starvation, dehydration, and untreated disease can
+          kill. Buy food and water where markets exist — deserts have none. You auto-eat/drink from
+          inventory as needs drop. Vaccines block matching pathogens on the world tick.
         </p>
       </div>
 

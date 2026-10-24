@@ -21,7 +21,7 @@ import { DbService } from "../core/db.service.js";
 import { EventsService } from "../core/events.service.js";
 import { SkillsService } from "../skills/skills.service.js";
 import type { AuthedAccount } from "../auth/auth.guard.js";
-import { requireLivingCharacter } from "../life/life.helpers.js";
+import { requireFitForActivity, requireLivingCharacter } from "../life/life.helpers.js";
 
 @Injectable()
 export class JobsService {
@@ -124,6 +124,7 @@ export class JobsService {
     const input = applyJobSchema.parse(body);
     const db = this.dbService.db;
     const character = await requireLivingCharacter(db, account);
+    await requireFitForActivity(db, character.id, "work");
 
     const [inTransit] = await db
       .select()

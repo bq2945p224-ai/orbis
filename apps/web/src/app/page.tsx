@@ -9,6 +9,7 @@ type Me = {
   email: string;
   username: string;
   emailVerified: boolean;
+  previewGuest?: boolean;
 };
 
 type Character = {
@@ -54,58 +55,51 @@ export default function HomePage() {
         <p className="text-sm uppercase tracking-[0.2em] text-steel/70">Persistent society</p>
         <h1 className="font-display text-5xl text-ink md:text-6xl">Orbis</h1>
         <p className="max-w-2xl text-lg text-ink/75">
-          You control one person in a living world. One game day lasts four real hours — the
-          simulation determines what happened; players determine what it means.
+          You control one person in a living world. One game day lasts four real hours — wages,
+          taxes, hunger, disease, and law run on that clock. Decisions change material outcomes.
         </p>
-        <p className="text-sm text-ink/50">Public free preview on Vercel.</p>
+        <p className="text-sm text-ink/50">
+          Public free preview on Vercel — no login required. Guest time advances while you play
+          (cookie sim). Job pay, loans, property tax, survival, and elections are real here — not
+          decorative.
+        </p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
         <div className="border border-ink/10 bg-white/50 p-5">
-          <h2 className="font-display text-xl">Account</h2>
+          <h2 className="font-display text-xl">Session</h2>
           {me ? (
             <div className="mt-3 space-y-1 text-sm">
               <p>
-                Signed in as <strong>{me.username}</strong>
+                Playing as <strong>{me.username}</strong>
+                {me.previewGuest ? " (preview guest)" : ""}
               </p>
               <p className="text-ink/60">{me.email}</p>
               <button
                 className="mt-3 border border-ink/20 px-3 py-1.5 text-sm hover:bg-ink/5"
                 onClick={async () => {
                   await api("/auth/logout", { method: "POST", body: "{}" });
-                  setMe(null);
-                  setCharacter(null);
+                  const account = await api<Me>("/auth/me");
+                  setMe(account);
+                  const ch = await api<Character>("/character/me");
+                  setCharacter(ch);
                 }}
               >
-                Log out
+                Reset guest session
               </button>
             </div>
           ) : (
             <div className="mt-3 space-y-2 text-sm">
-              <p className="text-ink/70">Not signed in.</p>
-              <div className="flex gap-3">
-                <Link className="underline" href="/login">
-                  Login
-                </Link>
-                <Link className="underline" href="/register">
-                  Register
-                </Link>
-              </div>
+              <p className="text-ink/70">Starting preview session…</p>
             </div>
           )}
         </div>
 
         <div className="border border-ink/10 bg-white/50 p-5">
           <h2 className="font-display text-xl">Life summary</h2>
-          {!me && <p className="mt-3 text-sm text-ink/70">Sign in to see your character.</p>}
+          {!me && <p className="mt-3 text-sm text-ink/70">Loading character…</p>}
           {me && !character && (
-            <p className="mt-3 text-sm text-ink/70">
-              No living character on this account. Characters are created at{" "}
-              <Link className="underline" href="/register">
-                signup
-              </Link>
-              .
-            </p>
+            <p className="mt-3 text-sm text-ink/70">No living character on this session.</p>
           )}
           {character && (
             <div className="mt-3 space-y-1 text-sm">
@@ -123,9 +117,16 @@ export default function HomePage() {
                   {character.employment.title} @ {character.employment.employerName}
                 </p>
               )}
-              {character.travel && (
-                <p className="text-steel">Traveling…</p>
+              {!character.employment && (
+                <p className="text-ink/70">
+                  Unemployed — pick a job on{" "}
+                  <Link className="underline" href="/jobs">
+                    Jobs
+                  </Link>
+                  .
+                </p>
               )}
+              {character.travel && <p className="text-steel">Traveling…</p>}
               <div className="flex flex-wrap gap-3 pt-2">
                 <Link className="underline" href="/character">
                   Character

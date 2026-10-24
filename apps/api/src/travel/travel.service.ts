@@ -29,7 +29,7 @@ import { DbService } from "../core/db.service.js";
 import { EventsService } from "../core/events.service.js";
 import { EconomyService } from "../economy/economy.service.js";
 import type { AuthedAccount } from "../auth/auth.guard.js";
-import { requireLivingCharacter } from "../life/life.helpers.js";
+import { requireFitForActivity, requireLivingCharacter } from "../life/life.helpers.js";
 
 @Injectable()
 export class TravelService {
@@ -351,6 +351,7 @@ export class TravelService {
     const input = travelSchema.parse(body);
     const db = this.dbService.db;
     const character = await requireLivingCharacter(db, account);
+    await requireFitForActivity(db, character.id, "travel");
     if (!character.locationDistrictId) {
       throw new BadRequestException("Character has no location");
     }

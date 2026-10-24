@@ -53,7 +53,10 @@ export default function MarketPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-3xl">Market</h1>
-      <p className="text-sm text-ink/70">Trade goods and request loans from the treasury.</p>
+      <p className="text-sm text-ink/70">
+        Trade character inventory between players. Treasury loans disburse immediately, then accrue
+        interest and collect payments on the world tick — miss payments and the loan defaults.
+      </p>
       {loading && <p className="text-sm text-ink/60">Loading…</p>}
       {error && <p className="text-sm text-red-700">{error}</p>}
 
@@ -164,6 +167,10 @@ export default function MarketPage() {
 
       <section className="border border-ink/10 bg-white/60 p-5 space-y-3 text-sm">
         <h2 className="font-display text-xl">Request loan</h2>
+        <p className="text-xs text-ink/55">
+          Not free money: remaining balance is billed over time with interest back to the world
+          treasury.
+        </p>
         <div className="flex flex-wrap gap-2">
           <input
             className="border border-ink/20 bg-white/80 px-2 py-1.5 w-28"
