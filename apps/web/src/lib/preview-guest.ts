@@ -1,7 +1,15 @@
 import { SKILL_CATALOG } from "@orbis/contracts";
 import { cookies } from "next/headers";
 
-export const GUEST_COOKIE = "orbis_guest_v1";
+export const GUEST_COOKIE = "orbis_guest_v2";
+
+export type SimLedger = {
+  id: string;
+  amountCents: number;
+  reason: string;
+  direction: "credit" | "debit";
+  createdAt: string;
+};
 
 export type GuestJob = {
   id: string;
@@ -16,12 +24,23 @@ export type GuestJob = {
   isWorldGovernment?: boolean;
 };
 
+export type GuestCompanyEmployee = {
+  characterId: string;
+  name: string;
+  salaryCentsPerDay: number;
+  hiredAt: string;
+  endedAt: string | null;
+};
+
 export type GuestState = {
   id: string;
   email: string;
   username: string;
   characterId: string;
   name: string;
+  status: "alive" | "dead";
+  causeOfDeath: string | null;
+  diedAt: string | null;
   balanceCents: number;
   locationDistrictId: string;
   districtName: string;
@@ -37,8 +56,12 @@ export type GuestState = {
   hunger: number;
   thirst: number;
   energy: number;
+  /** Mirrored from inventory food/water for older UI. */
   food: number;
   water: number;
+  infectedPathogenKey: string | null;
+  vaccinatedPathogenKey: string | null;
+  infectedAt: string | null;
   inventory: Array<{ itemKey: string; quantity: number }>;
   marketListings: Array<{
     id: string;
@@ -60,6 +83,7 @@ export type GuestState = {
     industryKey: string;
     treasuryCents: number;
     inventory: Array<{ itemKey: string; quantity: number }>;
+    employees: GuestCompanyEmployee[];
   }>;
   properties: Array<{
     id: string;
@@ -67,6 +91,7 @@ export type GuestState = {
     districtName: string;
     cityName: string;
     areaM2: number;
+    buildings: Array<{ type: string; name: string }>;
   }>;
   partyId: string | null;
   partyName: string | null;
@@ -74,8 +99,14 @@ export type GuestState = {
   travel: null | {
     arrivesAt: string;
     toDistrictId: string;
+    toDistrictName: string;
+    toCityName: string;
     status: string;
     destinationLabel: string;
+    mode: string;
+    costCents: number;
+    durationMs: number;
+    arrivedAt?: string;
   };
   crimes: Array<{
     id: string;
@@ -101,6 +132,27 @@ export type GuestState = {
     effectValue: string | null;
   }>;
   profileBio: string;
+  hasVehicle: boolean;
+  createdAt: string;
+  presenceStartedAt: string;
+  lastSimAt: string;
+  simTimeMs: number;
+  ledger: SimLedger[];
+  office: {
+    id: string;
+    title: string;
+    holderCharacterId: string | null;
+    holderName: string;
+  };
+  election: {
+    id: string;
+    office: string;
+    status: "open" | "closed";
+    closesAt: string;
+    candidates: Array<{ characterId: string; name: string }>;
+    votes: Array<{ voterId: string; candidateCharacterId: string }>;
+    winnerCharacterId: string | null;
+  };
 };
 
 export const OPEN_JOBS: GuestJob[] = [
@@ -149,12 +201,16 @@ export function defaultGuestState(): GuestState {
   for (const skill of SKILL_CATALOG.slice(0, 12)) {
     skills[skill.key] = { level: skill.key === "administration" ? 1 : 0, experience: 0 };
   }
+  const now = new Date().toISOString();
   return {
     id: "guest-account",
     email: "guest@orbis.preview",
     username: "guest",
     characterId: "guest-character",
     name: "Guest Traveler",
+    status: "alive",
+    causeOfDeath: null,
+    diedAt: null,
     balanceCents: 12_500,
     locationDistrictId: "district-harbor",
     districtName: "Harbor Ward",
@@ -172,9 +228,12 @@ export function defaultGuestState(): GuestState {
     energy: 80,
     food: 3,
     water: 3,
+    infectedPathogenKey: null,
+    vaccinatedPathogenKey: null,
+    infectedAt: null,
     inventory: [
-      { itemKey: "grain", quantity: 2 },
-      { itemKey: "water_ration", quantity: 2 },
+      { itemKey: "food", quantity: 3 },
+      { itemKey: "water", quantity: 3 },
     ],
     marketListings: [
       {
@@ -220,6 +279,38 @@ export function defaultGuestState(): GuestState {
       },
     ],
     profileBio: "Preview guest — no login required.",
+    hasVehicle: false,
+    createdAt: now,
+    presenceStartedAt: now,
+    lastSimAt: now,
+    simTimeMs: 0,
+    ledger: [
+      {
+        id: "tx-start",
+        amountCents: 12_500,
+        reason: "Starting balance",
+        direction: "credit",
+        createdAt: now,
+      },
+    ],
+    office: {
+      id: "office-1",
+      title: "Harbor Warden",
+      holderCharacterId: "npc-cand-1",
+      holderName: "Mira Sol",
+    },
+    election: {
+      id: "elect-1",
+      office: "Harbor Warden",
+      status: "open",
+      closesAt: new Date(Date.now() + 86_400_000).toISOString(),
+      candidates: [
+        { characterId: "npc-cand-1", name: "Mira Sol" },
+        { characterId: "guest-character", name: "Guest Traveler" },
+      ],
+      votes: [],
+      winnerCharacterId: null,
+    },
   };
 }
 

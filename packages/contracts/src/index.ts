@@ -273,6 +273,7 @@ export const voteSchema = z.object({
 /** Effects office-holders can attach so laws change real rules. */
 export const LAW_EFFECT_KEYS = [
   "property_tax_cents_per_day",
+  "sales_tax_bps",
 ] as const;
 
 export type LawEffectKey = (typeof LAW_EFFECT_KEYS)[number];
@@ -281,7 +282,10 @@ export const enactLawSchema = z.object({
   title: z.string().min(2).max(128),
   body: z.string().min(2).max(5000),
   effectKey: z.enum(LAW_EFFECT_KEYS).optional(),
-  /** Cents/day for property_tax_cents_per_day (0–50_000). */
+  /**
+   * For property_tax_cents_per_day: cents/day (0–50_000).
+   * For sales_tax_bps: basis points on market buys (0–10_000; 100 = 1%).
+   */
   effectValue: z.number().int().min(0).max(50_000).optional(),
 });
 

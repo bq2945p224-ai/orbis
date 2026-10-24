@@ -29,7 +29,7 @@ import { DbService } from "../core/db.service.js";
 import { EventsService } from "../core/events.service.js";
 import { EconomyService } from "../economy/economy.service.js";
 import type { AuthedAccount } from "../auth/auth.guard.js";
-import { requireLivingCharacter } from "../life/life.helpers.js";
+import { requireFitForActivity, requireLivingCharacter } from "../life/life.helpers.js";
 
 const CLINIC_COST_CENTS = 5_000;
 const VACCINE_COST_CENTS = 8_000;
@@ -358,6 +358,7 @@ export class HealthcareService {
     const input = forageSchema.parse(body);
     const db = this.dbService.db;
     const character = await requireLivingCharacter(db, account);
+    await requireFitForActivity(db, character.id, "forage");
     const health = await this.ensureHealth(character.id);
     const env = await this.localEnvironment(character);
 

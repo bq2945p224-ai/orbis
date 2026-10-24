@@ -55,12 +55,13 @@ export default function HomePage() {
         <p className="text-sm uppercase tracking-[0.2em] text-steel/70">Persistent society</p>
         <h1 className="font-display text-5xl text-ink md:text-6xl">Orbis</h1>
         <p className="max-w-2xl text-lg text-ink/75">
-          You control one person in a living world. One game day lasts four real hours — the
-          simulation determines what happened; players determine what it means.
+          You control one person in a living world. One game day lasts four real hours — wages,
+          taxes, hunger, disease, and law run on that clock. Decisions change material outcomes.
         </p>
         <p className="text-sm text-ink/50">
-          Public free preview on Vercel — no login required. Primary play choices change money,
-          skills, ownership, health, and law.
+          Public free preview on Vercel — no login required. Guest time advances while you play
+          (cookie sim). Job pay, loans, property tax, survival, and elections are real here — not
+          decorative.
         </p>
       </section>
 

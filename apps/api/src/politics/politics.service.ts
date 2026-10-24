@@ -447,6 +447,12 @@ export class PoliticsService {
           description:
             "Sets the daily property tax charged to parcel owners in this country. Replaces the previous active tax law.",
         },
+        {
+          key: "sales_tax_bps",
+          label: "Sales tax (basis points)",
+          description:
+            "Added to market purchase price (100 bps = 1%). Latest active sales-tax law wins.",
+        },
       ],
     };
   }

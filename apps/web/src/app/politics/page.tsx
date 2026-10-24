@@ -373,11 +373,17 @@ export default function PoliticsPage() {
         >
           <option value="">No effect (text only)</option>
           <option value="property_tax_cents_per_day">Property tax (¢/day)</option>
+          <option value="sales_tax_bps">Sales tax (basis points)</option>
         </select>
-        {lawEffectKey === "property_tax_cents_per_day" && (
+        {(lawEffectKey === "property_tax_cents_per_day" ||
+          lawEffectKey === "sales_tax_bps") && (
           <input
             className="w-full border border-ink/20 bg-white/80 px-2 py-1.5"
-            placeholder="Cents per day (e.g. 200 = 2 ORB)"
+            placeholder={
+              lawEffectKey === "sales_tax_bps"
+                ? "Basis points (e.g. 500 = 5%)"
+                : "Cents per day (e.g. 200 = 2 ORB)"
+            }
             value={lawEffectValue}
             onChange={(e) => setLawEffectValue(e.target.value)}
           />

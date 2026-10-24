@@ -17,6 +17,7 @@ import {
   characterStudy,
   parcelOwnerships,
   landParcels,
+  buildings,
   districts,
   cities,
   regions,
@@ -920,10 +921,23 @@ export async function processNeeds(db: ReturnType<typeof createDb>, deltaMs: num
   let damaged = 0;
   let died = 0;
 
+  const shelteredOwners = new Set<string>();
+  const shelterRows = await db
+    .select({ ownerCharacterId: parcelOwnerships.ownerCharacterId })
+    .from(parcelOwnerships)
+    .innerJoin(buildings, eq(buildings.parcelId, parcelOwnerships.parcelId))
+    .where(sql`${parcelOwnerships.ownerCharacterId} is not null`);
+  for (const s of shelterRows) {
+    if (s.ownerCharacterId) shelteredOwners.add(s.ownerCharacterId);
+  }
+
   for (const row of living) {
-    let hunger = row.health.hunger - HUNGER_DRAIN_PER_HOUR * hours;
+    const shelter = shelteredOwners.has(row.characterId);
+    const hungerRate = HUNGER_DRAIN_PER_HOUR * (shelter ? 0.75 : 1);
+    const energyRate = ENERGY_DRAIN_PER_HOUR * (shelter ? 0.5 : 1);
+    let hunger = row.health.hunger - hungerRate * hours;
     let thirst = row.health.thirst - THIRST_DRAIN_PER_HOUR * hours;
-    let energy = row.health.energy - ENERGY_DRAIN_PER_HOUR * hours;
+    let energy = row.health.energy - energyRate * hours;
     let hp = row.health.hp;
 
     if (hunger < 55) {

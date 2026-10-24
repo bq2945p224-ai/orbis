@@ -120,7 +120,8 @@ export default function WorldPage() {
       <p className="text-sm text-ink/70">
         Bulletin snapshot of geopolitics and environment. Treaties, sanctions, military, wars, and
         NPCs are <strong>not player-controlled yet</strong> — browsing them does not change rules.
-        The one action here is reporting a crime, which opens a court case and attempts a fine.
+        The one action here is reporting a crime: summary justice opens a court case and debits a
+        fine from the accused. Use your guest character id to feel the money consequence.
       </p>
       {loading && <p className="text-sm text-ink/60">Loading…</p>}
       {error && <p className="text-sm text-red-700">{error}</p>}
