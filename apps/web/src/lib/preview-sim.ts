@@ -227,7 +227,9 @@ function processNeeds(state: GuestState, simDeltaMs: number) {
 
 function processInfection(state: GuestState, simDeltaMs: number) {
   if (state.status === "dead" || simDeltaMs <= 0) return;
-  const ticks = Math.max(1, Math.floor(simDeltaMs / (HOUR_MS / 2)));
+  // Only roll on meaningful slices (avoid infecting on every sub-second page load).
+  const ticks = Math.floor(simDeltaMs / (HOUR_MS / 2));
+  if (ticks <= 0) return;
   for (let i = 0; i < ticks; i++) {
     if (state.infectedPathogenKey) {
       const dmg = 2;
